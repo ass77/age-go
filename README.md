@@ -55,3 +55,7 @@ go test . -v
   Sample : [cmd/app/age_wrapper_sample.go](cmd/app/age_wrapper_sample.go)
 
 - Run Samples : [cmd/app/main.go](cmd/app/main.go)
+
+### Setting up Postgres11 with AGE extension
+
+Check [this issue](https://github.com/apache/age/issues/347)

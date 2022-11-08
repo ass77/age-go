@@ -23,6 +23,8 @@ go 1.16
 
 require (
 	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210521184019-c5ad59b459ec
+	github.com/gofiber/fiber/v2 v2.39.0 // indirect
+	github.com/joho/godotenv v1.4.0 // indirect
 	github.com/lib/pq v1.10.2
 	github.com/stretchr/testify v1.7.0
 )

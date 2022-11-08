@@ -20,24 +20,56 @@ package main
 
 import (
 	"fmt"
+	"os"
 
+	helpers "github.com/ass77/age-go/helpers"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 // var dsn string = "host={host} port={port} dbname={dbname} user={username} password={password} sslmode=disable"
-var dsn string = "host=127.0.0.1 port=5432 dbname=test user=postgres password=postgres sslmode=disable"
 
 // var graphName string = "{graph_path}"
-var graphName string = "working_person"
 
+// TODO generic graphDB -> use metadata to create vertexes and match edges
 func main() {
+
+	var ENV_TYPE = os.Getenv("APP_ENV")
+	var dsn string
+
+	if ENV_TYPE == "local" {
+		// load the env file
+		err := godotenv.Load()
+		if err != nil {
+			fmt.Println("Error loading .env file")
+
+		}
+
+		dsn = os.Getenv("LOCAL_DSN")
+
+	} else if ENV_TYPE == "development" {
+		dsn = os.Getenv("DEVELOPMENT_DSN")
+
+	} else if ENV_TYPE == "staging" {
+		fmt.Println("staging")
+		dsn = os.Getenv("STAGING_DSN")
+
+	} else {
+		fmt.Println("production")
+		dsn = os.Getenv("PRODUCTION_DSN")
+
+	}
+
+	fmt.Println("ENV_TYPE: ", ENV_TYPE)
+	fmt.Println("dsn: ", dsn)
+	var graphName string = "working_person"
 
 	// Do cypher query to AGE with database/sql Tx API transaction conrol
 	fmt.Println("# Do cypher query with SQL API")
-	// doWithSqlAPI(dsn, graphName)
-	doWithSqlAPI(dsn, graphName)
+	helpers.DoWithSqlAPI(dsn, graphName)
 
 	// Do cypher query to AGE with Age API
 	fmt.Println("# Do cypher query with Age API")
-	doWithAgeWrapper(dsn, graphName)
+	helpers.DoWithAgeWrapper(dsn, graphName)
+
 }

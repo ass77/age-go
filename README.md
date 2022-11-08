@@ -43,7 +43,6 @@ SET search_path = ag_catalog, "$user", public;
 ```
 cd age
 go test . -v
-
 ```
 
 ### Application

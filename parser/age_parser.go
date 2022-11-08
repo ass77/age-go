@@ -95,7 +95,7 @@ type AgeParser struct {
 // The initial parser configuration is expensive to construct, and the object is not thread-safe;
 // however, if used within a Golang sync.Pool, the construction cost amortizes well and the
 // objects can be used in a thread-safe manner.
-func NewAgeParser(input antlr.TokenStream) *AgeParser {
+func NewAgeParser(input antlr.TokenStream) *AgeParser {	
 	this := new(AgeParser)
 	deserializer := antlr.NewATNDeserializer(nil)
 	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)

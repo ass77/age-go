@@ -29,7 +29,7 @@ import (
 )
 
 var dsn string = "host=127.0.0.1 port=5432 dbname=test user=postgres password=postgres sslmode=disable"
-var graphName string = "testGraph"
+var graphName string = "working_person"
 
 func TestAdditional(t *testing.T) {
 	db, err := sql.Open("postgres", dsn)

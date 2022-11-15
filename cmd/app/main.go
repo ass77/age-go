@@ -20,56 +20,72 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
-	helpers "github.com/ass77/age-go/helpers"
+	"github.com/ass77/age-go/routes"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-// var dsn string = "host={host} port={port} dbname={dbname} user={username} password={password} sslmode=disable"
+func setupRoutes(app *fiber.App) {
 
-// var graphName string = "{graph_path}"
+	app.Get("/healthz", func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"success": true,
+			"message": "You are at the root endpoint 😉",
+		})
+	})
+
+	api := app.Group("/")
+	routes.AgensRoutes(api.Group("/agens"))
+
+}
 
 // TODO generic graphDB -> use metadata to create vertexes and match edges
 func main() {
 
 	var ENV_TYPE = os.Getenv("APP_ENV")
-	var dsn string
 
 	if ENV_TYPE == "local" {
-		// load the env file
 		err := godotenv.Load()
 		if err != nil {
 			fmt.Println("Error loading .env file")
 
 		}
 
-		dsn = os.Getenv("LOCAL_DSN")
-
-	} else if ENV_TYPE == "development" {
-		dsn = os.Getenv("DEVELOPMENT_DSN")
-
-	} else if ENV_TYPE == "staging" {
-		fmt.Println("staging")
-		dsn = os.Getenv("STAGING_DSN")
-
-	} else {
-		fmt.Println("production")
-		dsn = os.Getenv("PRODUCTION_DSN")
-
 	}
-
 	fmt.Println("ENV_TYPE: ", ENV_TYPE)
-	fmt.Println("dsn: ", dsn)
-	var graphName string = "working_person"
 
 	// Do cypher query to AGE with database/sql Tx API transaction conrol
-	fmt.Println("# Do cypher query with SQL API")
-	helpers.DoWithSqlAPI(dsn, graphName)
+	// fmt.Println("# Do cypher query with SQL API")
+	// helpers.DoWithSqlAPI(dsn, graphName)
 
 	// Do cypher query to AGE with Age API
-	fmt.Println("# Do cypher query with Age API")
-	helpers.DoWithAgeWrapper(dsn, graphName)
+	// fmt.Println("# Do cypher query with Age API")
+	// helpers.DoWithAgeWrapper(dsn, graphName)
 
+	app := fiber.New()
+	app.Use(logger.New())
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowHeaders:     "Origin,Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization",
+		AllowMethods:     "POST, GET, OPTIONS, PUT, DELETE, PATCH",
+		AllowCredentials: true,
+		ExposeHeaders:    "Origin",
+	}))
+
+	setupRoutes(app)
+
+	port := os.Getenv("PORT")
+	err := app.Listen(":" + port)
+
+	if err != nil {
+		log.Fatal("Error app failed to start")
+		panic(err)
+	}
 }

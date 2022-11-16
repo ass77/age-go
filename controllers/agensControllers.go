@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/ass77/age-go/age"
@@ -53,37 +53,28 @@ func GetPersons(c *fiber.Ctx) error {
 		v1 := row[0].(*age.Vertex)
 		edge := row[1].(*age.Edge)
 		v2 := row[2].(*age.Vertex)
-		fmt.Println("ROW ", count, ">>", "\n\t", v1, "\n\t", edge, "\n\t", v2)
+		// log.Println("ROW ", count, ">>", "\n\t", v1, "\n\t", edge, "\n\t", v2)
 
-		// change v1 to string
-		v1Str := fmt.Sprintf("%v", v1)
-
-		edgeStr := fmt.Sprintf("%v", edge)
-
-		// change v2 to string
-		v2Str := fmt.Sprintf("%v", v2)
-
-		// append to array
 		allData = append(allData, models.Vertex{
-			V1:   v1Str,
-			Edge: edgeStr,
-			V2:   v2Str,
+			V1:   v1,
+			Edge: edge,
+			V2:   v2,
 		})
 	}
 
 	tx.Commit()
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "Persons found",
-		"data":    allData,
+		"data": allData,
 	})
 
 }
 
-func GetPerson(c *fiber.Ctx) error {
+func GetPersonRelation(c *fiber.Ctx) error {
 
 	// Get id from url params
-	id := c.Params("personId")
+	name := c.Params("personName")
+	relation := c.Params("relation")
 
 	var dsn = os.Getenv("DSN")
 
@@ -107,14 +98,26 @@ func GetPerson(c *fiber.Ctx) error {
 		panic(err)
 	}
 
-	// find vertices with Cypher based on id
-	vertex, err := age.ExecCypher(tx, graphName, 1, "MATCH (n:Person {name: '%s'}) RETURN n", id)
+	// find vertices with Cypher based on name
+	cursor, err := age.ExecCypher(tx, graphName, 3, "MATCH (a:Person)-[l:%s]-(b:Person) WHERE a.name = '%s' RETURN a, l, b", relation, name)
 
-	// if vertex == nil {
-	// return c.Status(404).JSON(fiber.Map{
-	// "message": "No Person found",
-	// })
-	// }
+	var data []models.Vertex
+
+	for cursor.Next() {
+		row, err := cursor.GetRow()
+		if err != nil {
+			panic(err)
+		}
+		v1 := row[0].(*age.Vertex)
+		edge := row[1].(*age.Edge)
+		v2 := row[2].(*age.Vertex)
+
+		data = append(data, models.Vertex{
+			V1:   v1,
+			Edge: edge,
+			V2:   v2,
+		})
+	}
 
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
@@ -123,8 +126,7 @@ func GetPerson(c *fiber.Ctx) error {
 	tx.Commit()
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "Person found",
-		"vertex":  vertex,
+		"vertex": data,
 	})
 
 }
@@ -163,6 +165,15 @@ func CreatePerson(c *fiber.Ctx) error {
 	// Create vertices with Cypher
 	vertex, err := age.ExecCypher(tx, graphName, 1, "CREATE (n:Person {name: '%s', role:'%s', weight:%f}) RETURN n", person.Name, person.Role, person.Weight)
 
+	for vertex.Next() {
+		row, err := vertex.GetRow()
+		if err != nil {
+			panic(err)
+		}
+		v := row[0].(*age.Vertex)
+		log.Println("VERTEX ", v)
+	}
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"message": err.Error(),
@@ -177,7 +188,7 @@ func CreatePerson(c *fiber.Ctx) error {
 	})
 }
 
-func ConnectPersons(c *fiber.Ctx) error {
+func ConnectPerson(c *fiber.Ctx) error {
 
 	var dsn = os.Getenv("DSN")
 
@@ -201,15 +212,31 @@ func ConnectPersons(c *fiber.Ctx) error {
 		panic(err)
 	}
 
-	// get name and weight from request body with models.Person
-	var person models.ConnectPerson
-	err = c.BodyParser(&person)
+	var connection models.ConnectPerson
+	var data []models.Vertex
+	err = c.BodyParser(&connection)
 	if err != nil {
 		panic(err)
 	}
 
 	// Create vertices with Cypher
-	vertex, err := age.ExecCypher(tx, graphName, 3, "MATCH (a:Person {name: '%s'}), (b:Person {name: '%s'}) CREATE (a)-[r:workWith {weight: %f}]->(b) RETURN a, r, b", person.PersonA, person.PersonB, person.Weight)
+	vertex, err := age.ExecCypher(tx, graphName, 3, "MATCH (a:Person {name: '%s'}), (b:Person {name: '%s'}) CREATE (a)-[r:%s {weight: %f}]->(b) RETURN a, r, b", connection.PersonA, connection.PersonB, connection.Relation, connection.Weight)
+
+	for vertex.Next() {
+		row, err := vertex.GetRow()
+		if err != nil {
+			panic(err)
+		}
+		v1 := row[0].(*age.Vertex)
+		edge := row[1].(*age.Edge)
+		v2 := row[2].(*age.Vertex)
+
+		data = append(data, models.Vertex{
+			V1:   v1,
+			Edge: edge,
+			V2:   v2,
+		})
+	}
 
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
@@ -218,8 +245,7 @@ func ConnectPersons(c *fiber.Ctx) error {
 	tx.Commit()
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": person.PersonA + " and " + person.PersonB + " connected",
-		"vertex":  vertex,
+		"vertex": data,
 	})
 }
 
@@ -247,6 +273,8 @@ func UpdatePerson(c *fiber.Ctx) error {
 		panic(err)
 	}
 
+	name := c.Params("name")
+
 	var person models.Person
 	err = c.BodyParser(&person)
 	if err != nil {
@@ -254,7 +282,7 @@ func UpdatePerson(c *fiber.Ctx) error {
 	}
 
 	// Create vertices with Cypher
-	vertex, err := age.ExecCypher(tx, graphName, 0, "MATCH (n:Person {name: '%s'}) SET n.weight = %f n.role = '%s' RETURN *", person.Name, person.Weight, person.Role)
+	vertex, err := age.ExecCypher(tx, graphName, 0, "MATCH (n:Person {name: '%s'}) SET n.weight = %f n.role = '%s' RETURN *", name, person.Weight, person.Role)
 
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
@@ -295,16 +323,17 @@ func DeletePerson(c *fiber.Ctx) error {
 
 	name := c.Params("personName")
 
-	fmt.Println(name, "name...............")
-
 	// Create vertices with Cypher
 	vertex, err := age.ExecCypher(tx, graphName, 1, "MATCH (n:Person {name: '%s'}) DETACH DELETE n RETURN n", name)
 
-	// if vertex == nil {
-	// return c.Status(404).JSON(fiber.Map{
-	// "message": "No Person found",
-	// })
-	// }
+	for vertex.Next() {
+		row, err := vertex.GetRow()
+		if err != nil {
+			panic(err)
+		}
+		v := row[0].(*age.Vertex)
+		log.Println("VERTEX ", v)
+	}
 
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
@@ -345,11 +374,18 @@ func DeletePersons(c *fiber.Ctx) error {
 	// Create vertices with Cypher
 	vertex, err := age.ExecCypher(tx, graphName, 1, "MATCH (n:Person) DETACH DELETE n RETURN n")
 
-	// if vertex == nil {
-	// return c.Status(404).JSON(fiber.Map{
-	// "message": "No Person found",
-	// })
-	// }
+	for vertex.Next() {
+		row, err := vertex.GetRow()
+
+		log.Println("ROW ", row)
+
+		if err != nil {
+			panic(err)
+		}
+
+		v := row[0].(*age.Vertex)
+		log.Println("VERTEX ", v)
+	}
 
 	if err != nil {
 		return c.Status(500).SendString(err.Error())

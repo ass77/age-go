@@ -7,9 +7,10 @@ type Person struct {
 }
 
 type ConnectPerson struct {
-	PersonA string  `json:"personA"`
-	PersonB string  `json:"personB"`
-	Weight  float32 `json:"weight"`
+	PersonA  string  `json:"personA"`
+	PersonB  string  `json:"personB"`
+	Relation string  `json:"relation"`
+	Weight   float32 `json:"weight"`
 }
 
 type Vertex struct {

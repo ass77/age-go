@@ -20,7 +20,6 @@ func ConnectDB() *sql.DB {
 	}
 
 	var dsn = os.Getenv("DSN")
-	log.Println("dsn: ", dsn)
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		panic(err)

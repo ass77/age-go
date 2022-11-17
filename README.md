@@ -46,7 +46,7 @@ make run
 
 ### Endpoints
 
-- import [insomnia docs](./insomnia//Insomnia-All_2022-11-17.json) to the your insomnia.
+- import [insomnia docs](./insomnia/Insomnia_2022-11-17.json) to the your insomnia.
 
 ## Extension vs No Extension
 

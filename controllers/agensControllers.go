@@ -1,32 +1,20 @@
 package controllers
 
 import (
-	"database/sql"
 	"log"
-	"os"
 
 	"github.com/ass77/age-go/age"
+	"github.com/ass77/age-go/config"
 	"github.com/ass77/age-go/models"
 	"github.com/gofiber/fiber/v2"
 )
 
+var db = config.ConnectDB()
+var graphName string = "working_person"
+
 func GetPersons(c *fiber.Ctx) error {
 
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
+	relation := c.Params("relation")
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
@@ -34,7 +22,8 @@ func GetPersons(c *fiber.Ctx) error {
 		panic(err)
 	}
 
-	cursor, err := age.ExecCypher(tx, graphName, 3, "MATCH (a:Person)-[l:workWith]-(b:Person) RETURN a, l, b")
+	cursor, err := age.ExecCypher(tx, graphName, 3, "MATCH (a:Person)-[l:%s]-(b:Person) RETURN a, l, b", relation)
+
 	if err != nil {
 		panic(err)
 	}
@@ -46,26 +35,27 @@ func GetPersons(c *fiber.Ctx) error {
 
 	for cursor.Next() {
 		row, err := cursor.GetRow()
+
 		if err != nil {
 			panic(err)
 		}
 		count++
+
 		v1 := row[0].(*age.Vertex)
 		edge := row[1].(*age.Edge)
 		v2 := row[2].(*age.Vertex)
-		// log.Println("ROW ", count, ">>", "\n\t", v1, "\n\t", edge, "\n\t", v2)
 
 		allData = append(allData, models.Vertex{
-			V1:   v1,
-			Edge: edge,
-			V2:   v2,
+			V1:   v1.String(),
+			Edge: edge.String(),
+			V2:   v2.String(),
 		})
 	}
 
 	tx.Commit()
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"data": allData,
+		"vertex": allData,
 	})
 
 }
@@ -76,21 +66,7 @@ func GetPersonRelation(c *fiber.Ctx) error {
 	name := c.Params("personName")
 	relation := c.Params("relation")
 
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
 	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
@@ -113,9 +89,9 @@ func GetPersonRelation(c *fiber.Ctx) error {
 		v2 := row[2].(*age.Vertex)
 
 		data = append(data, models.Vertex{
-			V1:   v1,
-			Edge: edge,
-			V2:   v2,
+			V1:   v1.String(),
+			Edge: edge.String(),
+			V2:   v2.String(),
 		})
 	}
 
@@ -131,23 +107,9 @@ func GetPersonRelation(c *fiber.Ctx) error {
 
 }
 
-func CreatePerson(c *fiber.Ctx) error {
-
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
+func CreatePersonNode(c *fiber.Ctx) error {
 
 	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
@@ -188,23 +150,7 @@ func CreatePerson(c *fiber.Ctx) error {
 	})
 }
 
-func ConnectPerson(c *fiber.Ctx) error {
-
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
+func ConnectPersonNode(c *fiber.Ctx) error {
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
@@ -232,9 +178,9 @@ func ConnectPerson(c *fiber.Ctx) error {
 		v2 := row[2].(*age.Vertex)
 
 		data = append(data, models.Vertex{
-			V1:   v1,
-			Edge: edge,
-			V2:   v2,
+			V1:   v1.String(),
+			Edge: edge.String(),
+			V2:   v2.String(),
 		})
 	}
 
@@ -249,31 +195,15 @@ func ConnectPerson(c *fiber.Ctx) error {
 	})
 }
 
-func UpdatePerson(c *fiber.Ctx) error {
+func UpdatePersonNode(c *fiber.Ctx) error {
 
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
+	name := c.Params("personName")
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
 	if err != nil {
 		panic(err)
 	}
-
-	name := c.Params("name")
 
 	var person models.Person
 	err = c.BodyParser(&person)
@@ -297,31 +227,15 @@ func UpdatePerson(c *fiber.Ctx) error {
 
 }
 
-func DeletePerson(c *fiber.Ctx) error {
+func DeletePersonNode(c *fiber.Ctx) error {
 
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
+	name := c.Params("personName")
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
 	if err != nil {
 		panic(err)
 	}
-
-	name := c.Params("personName")
 
 	// Create vertices with Cypher
 	vertex, err := age.ExecCypher(tx, graphName, 1, "MATCH (n:Person {name: '%s'}) DETACH DELETE n RETURN n", name)
@@ -348,22 +262,7 @@ func DeletePerson(c *fiber.Ctx) error {
 
 }
 
-func DeletePersons(c *fiber.Ctx) error {
-	var dsn = os.Getenv("DSN")
-
-	var graphName string = "working_person"
-
-	// Connect to PostgreSQL
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	// Confirm graph_path created
-	_, err = age.GetReady(db, graphName)
-	if err != nil {
-		panic(err)
-	}
+func DeletePersonsNodes(c *fiber.Ctx) error {
 
 	// Tx begin for execute create vertex
 	tx, err := db.Begin()
